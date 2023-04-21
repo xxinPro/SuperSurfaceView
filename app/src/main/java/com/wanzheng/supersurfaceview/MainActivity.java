@@ -2,10 +2,8 @@ package com.wanzheng.supersurfaceview;
 
 import android.Manifest;
 import android.content.pm.PackageManager;
-import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.widget.Button;
-import android.widget.ImageView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -31,21 +29,6 @@ public class MainActivity extends AppCompatActivity {
         switch_camera.setOnClickListener(view -> {
             cameraType = (cameraType == 0) ? 1 : 0;
             initCamera();
-        });
-
-        superFaceView.getBitmap(new SuperSurfaceView.BitmapCallback() {
-            @Override
-            public void onResponse(Bitmap bitmap) {
-                // 如果要显示bitmap图像。需在UI线程中
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        // 在UI线程中更新
-                        ImageView imageView = new ImageView(MainActivity.this);
-                        imageView.setImageBitmap(bitmap);
-                    }
-                });
-            }
         });
 
         request();
