@@ -22,7 +22,7 @@ public class SuperRenderer implements GLSurfaceView.Renderer, SurfaceTexture.OnF
             "\n" +
             "void main() {\n" +
             "    gl_Position = position;\n" +
-            "    textureCoordinate = (textureTransform * vec4(inputTextureCoordinate, 0.0, 1.0)).xy;\n" +
+            "    textureCoordinate = inputTextureCoordinate;\n" +
             "}";
     private final String fragmentShaderCode = "#extension GL_OES_EGL_image_external : require\n" +
             "precision mediump float;\n" +
@@ -32,8 +32,6 @@ public class SuperRenderer implements GLSurfaceView.Renderer, SurfaceTexture.OnF
             "void main() {\n" +
             "    gl_FragColor = texture2D(videoTex, textureCoordinate);\n" +
             "}";
-
-//    private SurfaceTexture surfaceTexture;  // 作为中间件，建立摄像头和GLSurfaceView之间的连接
 
     @Override
     public void onSurfaceCreated(GL10 gl10, EGLConfig eglConfig) {
@@ -45,27 +43,14 @@ public class SuperRenderer implements GLSurfaceView.Renderer, SurfaceTexture.OnF
         activeProgram();
     }
 
-//    public void open() {
-//        if (superSurfaceView == null) {
-//            surfaceTexture = new SurfaceTexture(createTextureId());
-//            surfaceTexture.setOnFrameAvailableListener(this);
-//        }
-//    }
-
-    private int positionHandle;
-    private int textureHandle;
     private int textureTransformHandle;
 
-    // 绘制范围矩阵转换后的buffer
-    private FloatBuffer rangeMatrixBuffer;
     // 绘制范围矩阵
-    private final float[] rangeMatrix = {-1.0f, -1.0f, -1.0f, 1.0f, 1.0f, -1.0f, 1.0f, 1.0f};
-    // 摄像头映像矩阵转换后的buffer
-    private FloatBuffer cameraMatrixBuffer;
+    private final float[] rangeMatrix = {-1, -1, -1, 1, 1, -1, 1, 1};
     // 前置摄像头绘制矩阵
-    private final float[] frontCameraMatrix = {0.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f};   // 镜像
+    private final float[] frontCameraMatrix = {0, 1, 1, 1, 0, 0, 1, 0};
     // 后置摄像头绘制矩阵
-    private final float[] rearCameraMatrix = {0.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f};   // 镜像
+    private final float[] rearCameraMatrix = {1, 1, 0, 1, 1, 0, 0, 0};
 
     /**
      * 添加程序到ES环境中
@@ -75,17 +60,20 @@ public class SuperRenderer implements GLSurfaceView.Renderer, SurfaceTexture.OnF
         GLES20.glUseProgram(programId);
 
         // 获取顶点着色器的position句柄
-        positionHandle = GLES20.glGetAttribLocation(programId, "position");
+        int positionHandle = GLES20.glGetAttribLocation(programId, "position");
         // 获取顶点着色器的inputTextureCoordinate句柄
-        textureHandle = GLES20.glGetAttribLocation(programId, "inputTextureCoordinate");
+        int textureHandle = GLES20.glGetAttribLocation(programId, "inputTextureCoordinate");
 
         textureTransformHandle = GLES20.glGetUniformLocation(programId, "textureTransform");
 
-        rangeMatrixBuffer = floatArr2FloatBuffer(rangeMatrix);
+        // 绘制范围矩阵转换后的buffer
+        FloatBuffer rangeMatrixBuffer = floatArr2FloatBuffer(rangeMatrix);
+        // 摄像头映像矩阵转换后的buffer
+        FloatBuffer cameraMatrixBuffer;
         if(cameraType == 0){
-            cameraMatrixBuffer = floatArr2FloatBuffer(frontCameraMatrix);
-        } else{
             cameraMatrixBuffer = floatArr2FloatBuffer(rearCameraMatrix);
+        } else{
+            cameraMatrixBuffer = floatArr2FloatBuffer(frontCameraMatrix);
         }
 
         // 准备positionHandle坐标数据
@@ -181,17 +169,23 @@ public class SuperRenderer implements GLSurfaceView.Renderer, SurfaceTexture.OnF
 
         // 设置观察视角 eye相机坐标 center 目标坐标 up 相机正上方 向量vuv(相机头部指向)
         Matrix.setLookAtM(cameraMatrix, 0,
-                0.0f, 0.0f, 1.0f,
-                0.0f, 0.0f, 0.0f,
-                0.0f, 1.0f, 0.0f);
+                0, 0, 1,
+                0, 0, 0,
+                0, 1, 0);
 
         Matrix.multiplyMM(scaleMatrix, 0, orthoMatrix, 0, cameraMatrix, 0);
     }
 
-    private SurfaceTexture surfaceTexture;  // 用于建立摄像头和GLSurfaceView之间的连接
+    private SurfaceTexture surfaceTexture;  // 作为中间件，建立摄像头和GLSurfaceView之间的连接
+    public boolean isBound = false;
 
     @Override
     public void onDrawFrame(GL10 gl10) {
+        if (isBound) {
+            activeProgram();
+            isBound = false;
+        }
+
         if (surfaceTexture != null) {
             // 清除屏幕缓存和深度缓存
             GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT | GLES20.GL_DEPTH_BUFFER_BIT);
@@ -215,8 +209,17 @@ public class SuperRenderer implements GLSurfaceView.Renderer, SurfaceTexture.OnF
         camera.startPreview();
     }
 
+    public void closeCamera() throws Exception {
+        if (camera != null) {
+            camera.setPreviewTexture(null);
+            camera.stopPreview();
+            camera.release();
+            camera = null;
+        }
+    }
+
     private int cameraType;           // 摄像头类型，0为后置摄像头，1为前置摄像头
-    private SuperSurfaceView superSurfaceView;
+    private final SuperSurfaceView superSurfaceView;
 
     public void setCameraType(int cameraType) {
         this.cameraType = cameraType;

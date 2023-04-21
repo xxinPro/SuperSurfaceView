@@ -10,6 +10,11 @@
     <com.wanzheng.supersurfaceview.SuperSurfaceView
         android:id="@+id/superFaceView"
         android:layout_width="300dp"
-        android:layout_height="300dp"/>
+        android:layout_height="530dp"/>
 
+    <Button
+        android:text="切换摄像头"
+        android:id="@+id/switch_camera"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"/>
 </LinearLayout>

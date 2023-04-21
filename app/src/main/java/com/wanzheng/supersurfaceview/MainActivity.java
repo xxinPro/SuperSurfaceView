@@ -1,17 +1,23 @@
 package com.wanzheng.supersurfaceview;
 
+import android.Manifest;
+import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.os.Bundle;
+import android.widget.Button;
+import android.widget.ImageView;
+import android.widget.Toast;
+
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 
-import android.Manifest;
-import android.content.pm.PackageManager;
-import android.os.Bundle;
-import android.widget.Toast;
-
 public class MainActivity extends AppCompatActivity {
 
     private SuperSurfaceView superFaceView;
+    private Button switch_camera;
+
+    private int cameraType = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -19,6 +25,29 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         superFaceView = findViewById(R.id.superFaceView);
+        switch_camera = findViewById(R.id.switch_camera);
+
+        // 切换前后摄像头
+        switch_camera.setOnClickListener(view -> {
+            cameraType = (cameraType == 0) ? 1 : 0;
+            initCamera();
+        });
+
+        superFaceView.getBitmap(new SuperSurfaceView.BitmapCallback() {
+            @Override
+            public void onResponse(Bitmap bitmap) {
+                // 如果要显示bitmap图像。需在UI线程中
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        // 在UI线程中更新
+                        ImageView imageView = new ImageView(MainActivity.this);
+                        imageView.setImageBitmap(bitmap);
+                    }
+                });
+            }
+        });
+
         request();
     }
 
@@ -38,7 +67,11 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void initCamera() {
-        superFaceView.setCameraType(1).launch();
+        try {
+            superFaceView.setCameraType(cameraType).launch();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
@@ -52,4 +85,16 @@ public class MainActivity extends AppCompatActivity {
     private boolean isCamera() {
         return ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED;
     }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        try {
+            superFaceView.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 }
+
+
